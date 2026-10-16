@@ -24,13 +24,13 @@
         <!-- O Canvas é onde desenhamos a câmera + os gráficos virtuais por cima -->
         <canvas id="output_canvas" class="w-full h-full object-cover"></canvas>
         
-        <!-- Interface do Usuário (HUD) - MOVIDO MAIS PARA CIMA (bottom-32) -->
+        <!-- Interface do Usuário (HUD) -->
         <div class="absolute bottom-32 left-0 w-full px-4 flex flex-col gap-3 pointer-events-none">
             
             <!-- Botões de Controle -->
             <div class="flex justify-center gap-3 pointer-events-auto">
-                <button id="btn-water" class="bg-blue-500 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg border-2 border-blue-300">Água</button>
-                <button id="btn-mercury" class="bg-gray-600 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg border-2 border-gray-400 opacity-50">Mercúrio</button>
+                <button id="btn-water" class="bg-blue-600 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg border-2 border-blue-300">Água</button>
+                <button id="btn-mercury" class="bg-gray-700 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg border-2 border-gray-400 opacity-50">Mercúrio</button>
             </div>
             
             <!-- Painel de Dados Compacto -->
@@ -113,8 +113,7 @@
             const maxRadiusPx = 150;
             let normalizedRadius = Math.max(minRadiusPx, Math.min(maxRadiusPx, radiusPixels));
             
-            // Simulação matemática (simplificada para visualização)
-            // r simulado em mm (inverso da distância para dar efeito visual bacana)
+            // Simulação matemática
             let r_mm = (normalizedRadius / maxRadiusPx) * 5; 
             if(r_mm < 0.2) r_mm = 0.2; // limite mínimo
             
@@ -129,16 +128,19 @@
             const beakerWidth = 140;
             const beakerHeight = 160;
             const beakerX = canvasElement.width / 2 - beakerWidth / 2;
-            const beakerY = canvasElement.height * 0.45; // Posicionado mais para cima (45% da tela)
+            const beakerY = canvasElement.height * 0.40; // Béquer posicionado aos 40% da tela (mais pro alto)
 
-            // Cores
-            const liquidColor = currentLiquid === 'water' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(156, 163, 175, 0.9)';
+            // Cores ajustadas para maior contraste do menisco
+            // Água: Corpo azul profundo, Menisco azul clarinho (brilhante)
+            // Mercúrio: Corpo cinza escuro, Menisco cinza bem claro (prata)
+            const liquidBodyColor = currentLiquid === 'water' ? 'rgba(37, 99, 235, 0.85)' : 'rgba(75, 85, 99, 0.95)';
+            const meniscusHighlightColor = currentLiquid === 'water' ? 'rgba(147, 197, 253, 1)' : 'rgba(243, 244, 246, 1)';
             const tubeColor = 'rgba(255, 255, 255, 0.6)';
 
             ctx.save();
             
             // Desenhar líquido no béquer
-            ctx.fillStyle = liquidColor;
+            ctx.fillStyle = liquidBodyColor;
             ctx.fillRect(beakerX + 5, beakerY + beakerHeight * 0.4, beakerWidth - 10, beakerHeight * 0.6 - 5);
             
             // Desenhar Béquer (Vidro)
@@ -152,25 +154,24 @@
             ctx.stroke();
 
             // Desenhar Tubo Capilar (controlado pelos dedos)
-            // Largura do tubo visual baseada no raio da pinça
-            const tubeWidth = Math.max(4, normalizedRadius * 0.6); 
+            const tubeWidth = Math.max(8, normalizedRadius * 0.6); 
             const tubeX = canvasElement.width / 2 - tubeWidth / 2;
             const tubeY = beakerY - 100;
             const tubeLength = beakerHeight + 80;
 
             // Fundo do tubo (vidro traseiro)
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
             ctx.fillRect(tubeX, tubeY, tubeWidth, tubeLength);
 
             // Nível inicial do líquido (nível do béquer)
             const baseLevelY = beakerY + beakerHeight * 0.4;
             
-            // Altura do líquido dentro do tubo (h_mm escalado para pixels na tela)
+            // Altura do líquido dentro do tubo
             const pixelHeight = h_mm * 4; 
             const liquidTopY = baseLevelY - pixelHeight;
 
             // Desenhar líquido dentro do tubo
-            ctx.fillStyle = liquidColor;
+            ctx.fillStyle = liquidBodyColor;
             
             if(currentLiquid === 'water') {
                 // Água sobe (preenche da base até o topo)
@@ -180,15 +181,24 @@
                 ctx.beginPath();
                 ctx.arc(tubeX + tubeWidth/2, liquidTopY, tubeWidth/2, 0, Math.PI, false);
                 ctx.fill();
+                
+                // Contraste: Linha brilhante no menisco
+                ctx.strokeStyle = meniscusHighlightColor;
+                ctx.lineWidth = 4;
+                ctx.stroke();
             } else {
                 // Mercúrio desce (preenche do béquer até a base mais baixa)
-                // Se h_mm é negativo, pixelHeight é negativo, liquidTopY > baseLevelY
                 ctx.fillRect(tubeX, baseLevelY, tubeWidth, liquidTopY - baseLevelY);
                 
                 // Menisco Convexo (curva para cima)
                 ctx.beginPath();
                 ctx.arc(tubeX + tubeWidth/2, liquidTopY, tubeWidth/2, Math.PI, 0, false);
                 ctx.fill();
+                
+                // Contraste: Linha brilhante no menisco
+                ctx.strokeStyle = meniscusHighlightColor;
+                ctx.lineWidth = 4;
+                ctx.stroke();
             }
 
             // Bordas do tubo capilar
@@ -198,7 +208,7 @@
 
             // Desenhar linhas indicadoras conectando a mão ao tubo
             if (centerX && centerY) {
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
                 ctx.setLineDash([5, 5]);
                 ctx.beginPath();
                 ctx.moveTo(centerX, centerY);
@@ -225,7 +235,6 @@
         });
 
         hands.onResults((results) => {
-            // Esconder tela de carregamento na primeira detecção
             if (loadingScreen.style.display !== 'none') {
                 loadingScreen.style.display = 'none';
             }
@@ -233,11 +242,9 @@
             canvasCtx.save();
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
             
-            // Desenhar vídeo espelhado (câmera frontal)
             canvasCtx.translate(canvasElement.width, 0);
             canvasCtx.scale(-1, 1);
             
-            // Centralizar o vídeo no canvas cortando excessos (object-cover simulado)
             const videoRatio = results.image.width / results.image.height;
             const canvasRatio = canvasElement.width / canvasElement.height;
             let drawWidth, drawHeight, offsetX, offsetY;
@@ -257,30 +264,26 @@
             canvasCtx.drawImage(results.image, offsetX, offsetY, drawWidth, drawHeight);
             canvasCtx.restore();
 
-            let distance = 30; // Valor padrão
+            let distance = 30; 
             let midX = null;
             let midY = null;
 
-            // Se detectou a mão, calcular o "movimento de pinça"
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const landmarks = results.multiHandLandmarks[0];
-                const thumbTip = landmarks[4]; // Ponta do polegar
-                const indexTip = landmarks[8]; // Ponta do indicador
+                const thumbTip = landmarks[4];
+                const indexTip = landmarks[8];
 
-                // Coordenadas convertidas para o canvas (lembrando que a imagem está espelhada)
                 const tX = canvasElement.width - (thumbTip.x * canvasElement.width);
                 const tY = thumbTip.y * canvasElement.height;
                 const iX = canvasElement.width - (indexTip.x * canvasElement.width);
                 const iY = indexTip.y * canvasElement.height;
 
-                // Desenhar bolinhas nos dedos
                 canvasCtx.fillStyle = '#10B981';
                 canvasCtx.beginPath();
                 canvasCtx.arc(tX, tY, 8, 0, 2 * Math.PI);
                 canvasCtx.arc(iX, iY, 8, 0, 2 * Math.PI);
                 canvasCtx.fill();
 
-                // Desenhar linha de conexão
                 canvasCtx.strokeStyle = '#34D399';
                 canvasCtx.lineWidth = 3;
                 canvasCtx.beginPath();
@@ -288,7 +291,6 @@
                 canvasCtx.lineTo(iX, iY);
                 canvasCtx.stroke();
 
-                // Calcular distância em pixels
                 const dx = tX - iX;
                 const dy = tY - iY;
                 distance = Math.sqrt(dx * dx + dy * dy);
@@ -297,11 +299,9 @@
                 midY = (tY + iY) / 2;
             }
 
-            // Sempre desenhar a simulação (atualiza com a distância se a mão estiver lá)
             drawSimulation(canvasCtx, distance, midX, midY);
         });
 
-        // Iniciar Câmera
         const camera = new Camera(videoElement, {
             onFrame: async () => {
                 await hands.send({image: videoElement});
