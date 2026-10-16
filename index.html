@@ -5,157 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Filtro AR: Capilaridade e Lei de Jurin</title>
     
-    <!-- Tailwind CSS para estilização -->
+    <!-- Tailwind CSS para estilização rápida -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- MediaPipe Hands & Camera Utils -->
+    <!-- Bibliotecas do MediaPipe para detecção de mãos -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
-    <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #1a202c; font-family: 'Inter', sans-serif; }
-        .video-container { position: relative; width: 100vw; height: 100vh; }
-        
-        /* O vídeo da câmera fica de fundo */
-        .input_video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); z-index: 1; }
-        
-        /* O canvas de desenho fica por cima do vídeo */
-        .output_canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); z-index: 10; pointer-events: none; }
-        
-        /* Painel da interface (HUD) */
-        .hud-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 0.5rem; }
-        .interactive-panel { pointer-events: auto; }
-        
-        /* Spinner de carregamento */
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 0 auto 4px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
 </head>
-<body class="text-gray-800">
+<body class="m-0 overflow-hidden bg-black fixed inset-0">
 
-    <div class="video-container">
-        <!-- Câmera e Canvas AR -->
-        <video class="input_video" autoplay playsinline></video>
-        <canvas class="output_canvas"></canvas>
-
-        <!-- Interface de Usuário (HUD) -->
-        <div class="hud-overlay">
+    <!-- Container de Vídeo e Canvas (Realidade Aumentada) -->
+    <div class="relative w-full h-full">
+        <!-- O vídeo original fica escondido, usamos apenas para alimentar a IA -->
+        <video id="input_video" class="hidden" autoplay playsinline></video>
+        
+        <!-- O Canvas é onde desenhamos a câmera + os gráficos virtuais por cima -->
+        <canvas id="output_canvas" class="w-full h-full object-cover"></canvas>
+        
+        <!-- Interface do Usuário (HUD) - MOVIDO MAIS PARA CIMA (bottom-32) -->
+        <div class="absolute bottom-32 left-0 w-full px-4 flex flex-col gap-3 pointer-events-none">
             
-            <!-- Cabeçalho Compacto -->
-            <div class="bg-white/70 backdrop-blur-sm rounded-xl p-2 shadow interactive-panel max-w-sm mx-auto w-full text-center">
-                <h1 class="text-sm font-bold text-indigo-700 leading-tight">Capilaridade (Lei de Jurin)</h1>
-                
-                <div id="loadingIndicator" class="mt-1">
-                    <div class="loader"></div>
-                    <p class="text-[10px] font-semibold text-gray-500 uppercase">Iniciando Câmera...</p>
-                </div>
-                
-                <p id="instructionText" class="text-[10px] text-gray-700 mt-1 hidden">Faça uma <strong>pinça com o polegar e indicador</strong> para controlar o tubo.</p>
+            <!-- Botões de Controle -->
+            <div class="flex justify-center gap-3 pointer-events-auto">
+                <button id="btn-water" class="bg-blue-500 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg border-2 border-blue-300">Água</button>
+                <button id="btn-mercury" class="bg-gray-600 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg border-2 border-gray-400 opacity-50">Mercúrio</button>
             </div>
-
-            <!-- Painel de Dados Extra Compacto -->
-            <div class="bg-white/85 backdrop-blur-md rounded-xl p-2 shadow-lg interactive-panel max-w-sm mx-auto w-full mb-2">
-                
-                <!-- Seletor de Substância -->
-                <div class="flex justify-center space-x-1 mb-2 bg-gray-200 p-1 rounded-lg">
-                    <button id="btnAgua" class="flex-1 py-1 rounded-md font-bold text-[11px] bg-blue-500 text-white shadow transition-all">💧 Água</button>
-                    <button id="btnMercurio" class="flex-1 py-1 rounded-md font-bold text-[11px] text-gray-600 hover:bg-white transition-all">⚪ Mercúrio</button>
+            
+            <!-- Painel de Dados Compacto -->
+            <div class="bg-black/70 backdrop-blur-md text-white p-3 rounded-xl text-xs flex justify-between shadow-lg border border-white/20">
+                <div class="flex flex-col gap-1">
+                    <span><span class="text-gray-400">Raio do Tubo:</span> <span id="radius-val" class="font-bold text-green-400">-- mm</span></span>
+                    <span><span class="text-gray-400">Altura (h):</span> <span id="height-val" class="font-bold text-yellow-400">-- mm</span></span>
                 </div>
-
-                <!-- Dados Físico-Químicos em Linha -->
-                <div class="flex space-x-2 mb-2">
-                    <div class="flex-1 bg-blue-50 rounded-lg p-1 border border-blue-100 text-center">
-                        <span class="block text-[9px] text-blue-500 font-bold uppercase">Raio (r)</span>
-                        <span id="txtRaio" class="text-sm font-black text-blue-900">-- mm</span>
-                    </div>
-                    <div class="flex-1 bg-indigo-50 rounded-lg p-1 border border-indigo-100 text-center">
-                        <span class="block text-[9px] text-indigo-500 font-bold uppercase">Altura (h)</span>
-                        <span id="txtAltura" class="text-sm font-black text-indigo-900">-- mm</span>
-                    </div>
+                <div class="flex flex-col gap-1 text-right">
+                    <span><span class="text-gray-400">Interação:</span> <span id="force-val" class="font-bold text-blue-300">Adesão > Coesão</span></span>
+                    <span><span class="text-gray-400">Menisco:</span> <span id="meniscus-val" class="font-bold">Côncavo</span></span>
                 </div>
-
-                <!-- Informação Conceitual Reduzida -->
-                <div class="bg-gray-50 rounded-lg p-1.5 border border-gray-200 text-center flex items-center justify-between">
-                    <div class="text-left">
-                        <span class="block text-[9px] text-gray-500 font-bold uppercase leading-none">Interação</span>
-                        <span id="txtForca" class="text-[11px] font-semibold text-gray-800">Aguardando...</span>
-                    </div>
-                    <p id="txtExplicacao" class="text-[9px] text-gray-600 leading-tight w-2/3 text-right">Posicione os dedos.</p>
-                </div>
-
             </div>
+            
+        </div>
+
+        <!-- Tela de Carregamento -->
+        <div id="loading" class="absolute inset-0 bg-black/90 flex flex-col items-center justify-center text-white z-50 px-6 text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
+            <h2 class="text-lg font-bold">Iniciando Realidade Aumentada...</h2>
+            <p class="text-sm text-gray-400 mt-2">Faça um movimento de pinça com o polegar e o indicador em frente à câmera.</p>
+        </div>
+        
+        <!-- Mensagem de Erro de Câmera -->
+        <div id="camera-error" class="hidden absolute inset-0 bg-red-900/90 flex flex-col items-center justify-center text-white z-50 px-6 text-center">
+            <h2 class="text-lg font-bold mb-2">Erro de Câmera</h2>
+            <p class="text-sm">Não foi possível acessar a câmera. Verifique se você deu permissão e se o link começa com "https://".</p>
         </div>
     </div>
 
     <script>
-        // Configurações e Constantes Físico-Químicas
-        const fisQ = {
-            g: 9.81, // Gravidade (m/s^2)
-            agua: {
-                nome: "Água",
-                cor: "rgba(59, 130, 246, 0.7)", // Azul
-                corBorda: "rgba(37, 99, 235, 1)",
-                gamma: 0.0728, // Tensão superficial (N/m)
-                rho: 1000, // Densidade (kg/m^3)
-                theta: 0, // Ângulo de contato (radianos)
-                forca: "Adesão > Coesão",
-                explicacao: "Líquido sobe (menisco côncavo)."
-            },
-            mercurio: {
-                nome: "Mercúrio",
-                cor: "rgba(156, 163, 175, 0.8)", // Cinza Metálico
-                corBorda: "rgba(107, 114, 128, 1)",
-                gamma: 0.4865,
-                rho: 13600,
-                theta: 140 * (Math.PI / 180), // 140 graus em radianos
-                forca: "Coesão > Adesão",
-                explicacao: "Líquido desce (menisco convexo)."
-            }
-        };
-
-        // Estado do App
-        let substanciaAtual = fisQ.agua;
-        
-        // Elementos da Interface
-        const videoElement = document.getElementsByClassName('input_video')[0];
-        const canvasElement = document.getElementsByClassName('output_canvas')[0];
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
         const canvasCtx = canvasElement.getContext('2d');
+        const loadingScreen = document.getElementById('loading');
+        const errorScreen = document.getElementById('camera-error');
+
+        // Elementos da UI
+        const valRadius = document.getElementById('radius-val');
+        const valHeight = document.getElementById('height-val');
+        const valForce = document.getElementById('force-val');
+        const valMeniscus = document.getElementById('meniscus-val');
+        const btnWater = document.getElementById('btn-water');
+        const btnMercury = document.getElementById('btn-mercury');
+
+        // Estado do Filtro
+        let currentLiquid = 'water'; // 'water' ou 'mercury'
         
-        const btnAgua = document.getElementById('btnAgua');
-        const btnMercurio = document.getElementById('btnMercurio');
-        const txtRaio = document.getElementById('txtRaio');
-        const txtAltura = document.getElementById('txtAltura');
-        const txtForca = document.getElementById('txtForca');
-        const txtExplicacao = document.getElementById('txtExplicacao');
-        const loadingIndicator = document.getElementById('loadingIndicator');
-        const instructionText = document.getElementById('instructionText');
-
-        // Troca de Substância UI
-        function setSubstancia(tipo) {
-            if (tipo === 'agua') {
-                substanciaAtual = fisQ.agua;
-                btnAgua.className = "flex-1 py-1 rounded-md font-bold text-[11px] bg-blue-500 text-white shadow transition-all";
-                btnMercurio.className = "flex-1 py-1 rounded-md font-bold text-[11px] text-gray-600 hover:bg-white transition-all";
-            } else {
-                substanciaAtual = fisQ.mercurio;
-                btnMercurio.className = "flex-1 py-1 rounded-md font-bold text-[11px] bg-gray-600 text-white shadow transition-all";
-                btnAgua.className = "flex-1 py-1 rounded-md font-bold text-[11px] text-gray-600 hover:bg-white transition-all";
-            }
-            atualizarHUDBase();
-        }
-
-        function atualizarHUDBase() {
-            txtForca.innerText = substanciaAtual.forca;
-            txtExplicacao.innerText = substanciaAtual.explicacao;
-        }
-
-        btnAgua.addEventListener('click', () => setSubstancia('agua'));
-        btnMercurio.addEventListener('click', () => setSubstancia('mercurio'));
-        atualizarHUDBase();
-
-        // Lógica de Redimensionamento do Canvas
+        // Ajustar Canvas para o tamanho da tela
         function resizeCanvas() {
             canvasElement.width = window.innerWidth;
             canvasElement.height = window.innerHeight;
@@ -163,150 +87,221 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // IA: Callback do MediaPipe Hands
-        function onResults(results) {
-            if (!loadingIndicator.classList.contains('hidden')) {
-                loadingIndicator.classList.add('hidden');
-                instructionText.classList.remove('hidden');
-            }
+        // Botões de Seleção
+        btnWater.addEventListener('click', () => {
+            currentLiquid = 'water';
+            btnWater.classList.remove('opacity-50');
+            btnMercury.classList.add('opacity-50');
+            valForce.innerText = "Adesão > Coesão";
+            valForce.className = "font-bold text-blue-300";
+            valMeniscus.innerText = "Côncavo";
+        });
 
-            canvasCtx.save();
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        btnMercury.addEventListener('click', () => {
+            currentLiquid = 'mercury';
+            btnMercury.classList.remove('opacity-50');
+            btnWater.classList.add('opacity-50');
+            valForce.innerText = "Coesão > Adesão";
+            valForce.className = "font-bold text-gray-300";
+            valMeniscus.innerText = "Convexo";
+        });
 
-            // Apenas desenha se houver uma mão detectada
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                const landmarks = results.multiHandLandmarks[0];
+        // Função para desenhar a simulação (Béquer e Tubo)
+        function drawSimulation(ctx, radiusPixels, centerX, centerY) {
+            // Converter raio em pixels para um valor simulado em mm (1 a 10)
+            const minRadiusPx = 10;
+            const maxRadiusPx = 150;
+            let normalizedRadius = Math.max(minRadiusPx, Math.min(maxRadiusPx, radiusPixels));
+            
+            // Simulação matemática (simplificada para visualização)
+            // r simulado em mm (inverso da distância para dar efeito visual bacana)
+            let r_mm = (normalizedRadius / maxRadiusPx) * 5; 
+            if(r_mm < 0.2) r_mm = 0.2; // limite mínimo
+            
+            // Lei de Jurin (simplificada): h é inversamente proporcional a r
+            let h_mm = currentLiquid === 'water' ? (15 / r_mm) : -(10 / r_mm);
+            
+            // Atualizar UI
+            valRadius.innerText = r_mm.toFixed(1) + " mm";
+            valHeight.innerText = h_mm.toFixed(1) + " mm";
+
+            // Dimensões do Béquer (desenhado mais para cima na tela)
+            const beakerWidth = 140;
+            const beakerHeight = 160;
+            const beakerX = canvasElement.width / 2 - beakerWidth / 2;
+            const beakerY = canvasElement.height * 0.45; // Posicionado mais para cima (45% da tela)
+
+            // Cores
+            const liquidColor = currentLiquid === 'water' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(156, 163, 175, 0.9)';
+            const tubeColor = 'rgba(255, 255, 255, 0.6)';
+
+            ctx.save();
+            
+            // Desenhar líquido no béquer
+            ctx.fillStyle = liquidColor;
+            ctx.fillRect(beakerX + 5, beakerY + beakerHeight * 0.4, beakerWidth - 10, beakerHeight * 0.6 - 5);
+            
+            // Desenhar Béquer (Vidro)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(beakerX, beakerY);
+            ctx.lineTo(beakerX, beakerY + beakerHeight);
+            ctx.lineTo(beakerX + beakerWidth, beakerY + beakerHeight);
+            ctx.lineTo(beakerX + beakerWidth, beakerY);
+            ctx.stroke();
+
+            // Desenhar Tubo Capilar (controlado pelos dedos)
+            // Largura do tubo visual baseada no raio da pinça
+            const tubeWidth = Math.max(4, normalizedRadius * 0.6); 
+            const tubeX = canvasElement.width / 2 - tubeWidth / 2;
+            const tubeY = beakerY - 100;
+            const tubeLength = beakerHeight + 80;
+
+            // Fundo do tubo (vidro traseiro)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.fillRect(tubeX, tubeY, tubeWidth, tubeLength);
+
+            // Nível inicial do líquido (nível do béquer)
+            const baseLevelY = beakerY + beakerHeight * 0.4;
+            
+            // Altura do líquido dentro do tubo (h_mm escalado para pixels na tela)
+            const pixelHeight = h_mm * 4; 
+            const liquidTopY = baseLevelY - pixelHeight;
+
+            // Desenhar líquido dentro do tubo
+            ctx.fillStyle = liquidColor;
+            
+            if(currentLiquid === 'water') {
+                // Água sobe (preenche da base até o topo)
+                ctx.fillRect(tubeX, liquidTopY, tubeWidth, baseLevelY - liquidTopY + 20);
                 
-                // Ponta do polegar (4) e do indicador (8)
-                const thumbTip = landmarks[4];
-                const indexTip = landmarks[8];
-
-                // Converte coordenadas da IA para o Canvas
-                const tX = thumbTip.x * canvasElement.width;
-                const tY = thumbTip.y * canvasElement.height;
-                const iX = indexTip.x * canvasElement.width;
-                const iY = indexTip.y * canvasElement.height;
-
-                // Distância em pixels
-                const dx = tX - iX;
-                const dy = tY - iY;
-                const distancePx = Math.sqrt(dx*dx + dy*dy);
-
-                // --- FÍSICA E LEI DE JURIN ---
-                let raioMm = (distancePx / 80); 
-                raioMm = Math.max(0.1, Math.min(raioMm, 4.0)); // Limita entre 0.1mm e 4.0mm
-                const raioM = raioMm / 1000;
-
-                // h = (2 * gamma * cos(theta)) / (rho * g * r)
-                const hM = (2 * substanciaAtual.gamma * Math.cos(substanciaAtual.theta)) / (substanciaAtual.rho * fisQ.g * raioM);
-                const hMm = hM * 1000; 
-
-                // Atualiza UI
-                txtRaio.innerText = raioMm.toFixed(2) + " mm";
-                txtAltura.innerText = hMm.toFixed(2) + " mm";
-
-                // --- DESENHO AR ---
-                const midX = (tX + iX) / 2;
-                const midY = (tY + iY) / 2;
-                
-                // AJUSTE PARA CELULAR: Levanta o béquer dependendo do tamanho da tela
-                const isMobile = window.innerWidth < 768;
-                const bequerY = isMobile ? canvasElement.height - 280 : canvasElement.height - 150; 
-                const bequerLargura = isMobile ? 150 : 200;
-                
-                const larguraTuboVisual = Math.max(10, distancePx); 
-                const scalaVisual = 15; 
-                const alturaVisualH = -hMm * scalaVisual; 
-
-                // Linha guia entre os dedos
-                canvasCtx.beginPath();
-                canvasCtx.moveTo(tX, tY);
-                canvasCtx.lineTo(iX, iY);
-                canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-                canvasCtx.lineWidth = 2;
-                canvasCtx.stroke();
-                
-                // Pontos nos dedos
-                canvasCtx.beginPath(); canvasCtx.arc(tX, tY, 5, 0, 2 * Math.PI); canvasCtx.fillStyle = '#10B981'; canvasCtx.fill();
-                canvasCtx.beginPath(); canvasCtx.arc(iX, iY, 5, 0, 2 * Math.PI); canvasCtx.fillStyle = '#EF4444'; canvasCtx.fill();
-
-                const nivelBaseY = bequerY - 40;
-                const nivelTuboY = nivelBaseY + alturaVisualH;
-
-                // Líquido no tubo
-                canvasCtx.fillStyle = substanciaAtual.cor;
-                canvasCtx.beginPath();
-                canvasCtx.moveTo(midX - larguraTuboVisual/2, bequerY);
-                canvasCtx.lineTo(midX - larguraTuboVisual/2, nivelTuboY);
-
-                // Menisco
-                const raioCurva = larguraTuboVisual / 2;
-                if (substanciaAtual.nome === "Água") {
-                    canvasCtx.quadraticCurveTo(midX, nivelTuboY + (raioCurva*0.8), midX + larguraTuboVisual/2, nivelTuboY);
-                } else {
-                    canvasCtx.quadraticCurveTo(midX, nivelTuboY - (raioCurva*0.8), midX + larguraTuboVisual/2, nivelTuboY);
-                }
-
-                canvasCtx.lineTo(midX + larguraTuboVisual/2, bequerY);
-                canvasCtx.closePath();
-                canvasCtx.fill();
-
-                // Contorno Menisco
-                canvasCtx.beginPath();
-                canvasCtx.moveTo(midX - larguraTuboVisual/2, nivelTuboY);
-                if (substanciaAtual.nome === "Água") {
-                    canvasCtx.quadraticCurveTo(midX, nivelTuboY + (raioCurva*0.8), midX + larguraTuboVisual/2, nivelTuboY);
-                } else {
-                    canvasCtx.quadraticCurveTo(midX, nivelTuboY - (raioCurva*0.8), midX + larguraTuboVisual/2, nivelTuboY);
-                }
-                canvasCtx.strokeStyle = substanciaAtual.corBorda;
-                canvasCtx.lineWidth = 3;
-                canvasCtx.stroke();
-
-                // Paredes do Tubo
-                canvasCtx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-                canvasCtx.lineWidth = 4;
-                canvasCtx.beginPath();
-                canvasCtx.moveTo(midX - larguraTuboVisual/2, bequerY);
-                canvasCtx.lineTo(midX - larguraTuboVisual/2, bequerY - 350);
-                canvasCtx.moveTo(midX + larguraTuboVisual/2, bequerY);
-                canvasCtx.lineTo(midX + larguraTuboVisual/2, bequerY - 350);
-                canvasCtx.stroke();
-
-                // Líquido no Béquer
-                canvasCtx.fillStyle = substanciaAtual.cor;
-                canvasCtx.fillRect(midX - bequerLargura/2, nivelBaseY, bequerLargura, bequerY - nivelBaseY);
-                
-                // Nível Béquer
-                canvasCtx.strokeStyle = substanciaAtual.corBorda;
-                canvasCtx.lineWidth = 2;
-                canvasCtx.beginPath();
-                canvasCtx.moveTo(midX - bequerLargura/2, nivelBaseY);
-                canvasCtx.lineTo(midX + bequerLargura/2, nivelBaseY);
-                canvasCtx.stroke();
-
+                // Menisco Côncavo (curva para baixo)
+                ctx.beginPath();
+                ctx.arc(tubeX + tubeWidth/2, liquidTopY, tubeWidth/2, 0, Math.PI, false);
+                ctx.fill();
             } else {
-                txtRaio.innerText = "-- mm";
-                txtAltura.innerText = "-- mm";
+                // Mercúrio desce (preenche do béquer até a base mais baixa)
+                // Se h_mm é negativo, pixelHeight é negativo, liquidTopY > baseLevelY
+                ctx.fillRect(tubeX, baseLevelY, tubeWidth, liquidTopY - baseLevelY);
+                
+                // Menisco Convexo (curva para cima)
+                ctx.beginPath();
+                ctx.arc(tubeX + tubeWidth/2, liquidTopY, tubeWidth/2, Math.PI, 0, false);
+                ctx.fill();
             }
-            canvasCtx.restore();
+
+            // Bordas do tubo capilar
+            ctx.strokeStyle = tubeColor;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(tubeX, tubeY, tubeWidth, tubeLength);
+
+            // Desenhar linhas indicadoras conectando a mão ao tubo
+            if (centerX && centerY) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(tubeX + tubeWidth/2, tubeY + tubeLength/2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            ctx.restore();
         }
 
-        // Inicializa MediaPipe
-        const hands = new Hands({locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-        }});
+        // Configuração do MediaPipe Hands
+        const hands = new Hands({
+            locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }
+        });
 
         hands.setOptions({
             maxNumHands: 1,
             modelComplexity: 1,
-            minDetectionConfidence: 0.7,
-            minTrackingConfidence: 0.7
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
         });
 
-        hands.onResults(onResults);
+        hands.onResults((results) => {
+            // Esconder tela de carregamento na primeira detecção
+            if (loadingScreen.style.display !== 'none') {
+                loadingScreen.style.display = 'none';
+            }
 
-        // Inicializa Câmera
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            
+            // Desenhar vídeo espelhado (câmera frontal)
+            canvasCtx.translate(canvasElement.width, 0);
+            canvasCtx.scale(-1, 1);
+            
+            // Centralizar o vídeo no canvas cortando excessos (object-cover simulado)
+            const videoRatio = results.image.width / results.image.height;
+            const canvasRatio = canvasElement.width / canvasElement.height;
+            let drawWidth, drawHeight, offsetX, offsetY;
+            
+            if (canvasRatio > videoRatio) {
+                drawWidth = canvasElement.width;
+                drawHeight = canvasElement.width / videoRatio;
+                offsetX = 0;
+                offsetY = (canvasElement.height - drawHeight) / 2;
+            } else {
+                drawWidth = canvasElement.height * videoRatio;
+                drawHeight = canvasElement.height;
+                offsetX = (canvasElement.width - drawWidth) / 2;
+                offsetY = 0;
+            }
+            
+            canvasCtx.drawImage(results.image, offsetX, offsetY, drawWidth, drawHeight);
+            canvasCtx.restore();
+
+            let distance = 30; // Valor padrão
+            let midX = null;
+            let midY = null;
+
+            // Se detectou a mão, calcular o "movimento de pinça"
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+                const thumbTip = landmarks[4]; // Ponta do polegar
+                const indexTip = landmarks[8]; // Ponta do indicador
+
+                // Coordenadas convertidas para o canvas (lembrando que a imagem está espelhada)
+                const tX = canvasElement.width - (thumbTip.x * canvasElement.width);
+                const tY = thumbTip.y * canvasElement.height;
+                const iX = canvasElement.width - (indexTip.x * canvasElement.width);
+                const iY = indexTip.y * canvasElement.height;
+
+                // Desenhar bolinhas nos dedos
+                canvasCtx.fillStyle = '#10B981';
+                canvasCtx.beginPath();
+                canvasCtx.arc(tX, tY, 8, 0, 2 * Math.PI);
+                canvasCtx.arc(iX, iY, 8, 0, 2 * Math.PI);
+                canvasCtx.fill();
+
+                // Desenhar linha de conexão
+                canvasCtx.strokeStyle = '#34D399';
+                canvasCtx.lineWidth = 3;
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(tX, tY);
+                canvasCtx.lineTo(iX, iY);
+                canvasCtx.stroke();
+
+                // Calcular distância em pixels
+                const dx = tX - iX;
+                const dy = tY - iY;
+                distance = Math.sqrt(dx * dx + dy * dy);
+                
+                midX = (tX + iX) / 2;
+                midY = (tY + iY) / 2;
+            }
+
+            // Sempre desenhar a simulação (atualiza com a distância se a mão estiver lá)
+            drawSimulation(canvasCtx, distance, midX, midY);
+        });
+
+        // Iniciar Câmera
         const camera = new Camera(videoElement, {
             onFrame: async () => {
                 await hands.send({image: videoElement});
@@ -314,17 +309,12 @@
             width: 1280,
             height: 720
         });
-        
-        // Inicia câmera com tratamento de erro
-        camera.start().catch((error) => {
-            console.error("Erro de Câmera:", error);
-            loadingIndicator.innerHTML = `
-                <div class="bg-red-50 border border-red-200 rounded-lg p-2 mt-1">
-                    <p class="text-[10px] font-bold text-red-600 uppercase">Câmera indisponível</p>
-                </div>
-            `;
-        });
 
+        camera.start().catch((err) => {
+            console.error(err);
+            loadingScreen.style.display = 'none';
+            errorScreen.classList.remove('hidden');
+        });
     </script>
 </body>
 </html>
