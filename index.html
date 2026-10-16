@@ -25,11 +25,11 @@
         .output_canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); z-index: 10; pointer-events: none; }
         
         /* Painel da interface (HUD) */
-        .hud-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 1.5rem; }
+        .hud-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 1rem; }
         .interactive-panel { pointer-events: auto; }
         
         /* Spinner de carregamento */
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 10px auto; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 8px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -43,45 +43,45 @@
         <!-- Interface de Usuário (HUD) -->
         <div class="hud-overlay">
             
-            <!-- Cabeçalho / Título -->
-            <div class="bg-white/80 backdrop-blur-md rounded-2xl p-4 shadow-lg interactive-panel max-w-sm mx-auto w-full text-center">
-                <h1 class="text-xl font-bold text-indigo-700 mb-1">Físico-Química AR</h1>
-                <p class="text-sm text-gray-600 font-medium">Capilaridade (Lei de Jurin)</p>
+            <!-- Cabeçalho / Título (Mais compacto para celular) -->
+            <div class="bg-white/80 backdrop-blur-md rounded-2xl p-3 shadow-lg interactive-panel max-w-sm mx-auto w-full text-center">
+                <h1 class="text-lg font-bold text-indigo-700 mb-1">Físico-Química AR</h1>
+                <p class="text-xs text-gray-600 font-medium">Capilaridade (Lei de Jurin)</p>
                 
-                <div id="loadingIndicator" class="mt-4">
+                <div id="loadingIndicator" class="mt-3">
                     <div class="loader"></div>
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Iniciando Câmera e IA...</p>
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Iniciando Câmera...</p>
                 </div>
                 
-                <p id="instructionText" class="text-sm text-gray-700 mt-2 hidden">Faça uma <strong>pinça com o polegar e indicador</strong> em frente à câmera para controlar o tubo.</p>
+                <p id="instructionText" class="text-xs text-gray-700 mt-2 hidden">Faça uma <strong>pinça com o polegar e indicador</strong> para controlar o tubo.</p>
             </div>
 
-            <!-- Painel de Dados e Controles -->
-            <div class="bg-white/90 backdrop-blur-md rounded-2xl p-5 shadow-2xl interactive-panel max-w-sm mx-auto w-full mb-4">
+            <!-- Painel de Dados e Controles (Mais compacto e com margem menor no celular) -->
+            <div class="bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-2xl interactive-panel max-w-sm mx-auto w-full mb-1">
                 
                 <!-- Seletor de Substância -->
-                <div class="flex justify-center space-x-2 mb-4 bg-gray-200 p-1 rounded-xl">
-                    <button id="btnAgua" class="flex-1 py-2 rounded-lg font-bold text-sm bg-blue-500 text-white shadow transition-all">💧 Água</button>
-                    <button id="btnMercurio" class="flex-1 py-2 rounded-lg font-bold text-sm text-gray-600 hover:bg-white transition-all">⚪ Mercúrio</button>
+                <div class="flex justify-center space-x-2 mb-3 bg-gray-200 p-1 rounded-xl">
+                    <button id="btnAgua" class="flex-1 py-1.5 rounded-lg font-bold text-sm bg-blue-500 text-white shadow transition-all">💧 Água</button>
+                    <button id="btnMercurio" class="flex-1 py-1.5 rounded-lg font-bold text-sm text-gray-600 hover:bg-white transition-all">⚪ Mercúrio</button>
                 </div>
 
                 <!-- Dados Físico-Químicos -->
-                <div class="grid grid-cols-2 gap-3 mb-3">
-                    <div class="bg-blue-50 rounded-xl p-3 border border-blue-100">
-                        <span class="block text-xs text-blue-500 font-bold uppercase tracking-wide">Raio (r)</span>
-                        <span id="txtRaio" class="text-lg font-black text-blue-900">-- mm</span>
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div class="bg-blue-50 rounded-xl p-2 border border-blue-100 text-center">
+                        <span class="block text-[10px] text-blue-500 font-bold uppercase tracking-wide">Raio (r)</span>
+                        <span id="txtRaio" class="text-base font-black text-blue-900">-- mm</span>
                     </div>
-                    <div class="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
-                        <span class="block text-xs text-indigo-500 font-bold uppercase tracking-wide">Altura (h)</span>
-                        <span id="txtAltura" class="text-lg font-black text-indigo-900">-- mm</span>
+                    <div class="bg-indigo-50 rounded-xl p-2 border border-indigo-100 text-center">
+                        <span class="block text-[10px] text-indigo-500 font-bold uppercase tracking-wide">Altura (h)</span>
+                        <span id="txtAltura" class="text-base font-black text-indigo-900">-- mm</span>
                     </div>
                 </div>
 
                 <!-- Informação Conceitual -->
-                <div class="bg-gray-50 rounded-xl p-3 border border-gray-200">
-                    <span class="block text-xs text-gray-500 font-bold uppercase tracking-wide mb-1">Interação Predominante</span>
-                    <span id="txtForca" class="text-sm font-semibold text-gray-800 block mb-1">Aguardando...</span>
-                    <p id="txtExplicacao" class="text-xs text-gray-600 leading-tight">Posicione os dedos para ver a simulação.</p>
+                <div class="bg-gray-50 rounded-xl p-2 border border-gray-200 text-center">
+                    <span class="block text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-0.5">Interação Predominante</span>
+                    <span id="txtForca" class="text-sm font-semibold text-gray-800 block mb-0.5">Aguardando...</span>
+                    <p id="txtExplicacao" class="text-[11px] text-gray-600 leading-tight">Posicione os dedos para ver a simulação.</p>
                 </div>
 
             </div>
@@ -135,12 +135,12 @@
         function setSubstancia(tipo) {
             if (tipo === 'agua') {
                 substanciaAtual = fisQ.agua;
-                btnAgua.className = "flex-1 py-2 rounded-lg font-bold text-sm bg-blue-500 text-white shadow transition-all";
-                btnMercurio.className = "flex-1 py-2 rounded-lg font-bold text-sm text-gray-600 hover:bg-white transition-all";
+                btnAgua.className = "flex-1 py-1.5 rounded-lg font-bold text-sm bg-blue-500 text-white shadow transition-all";
+                btnMercurio.className = "flex-1 py-1.5 rounded-lg font-bold text-sm text-gray-600 hover:bg-white transition-all";
             } else {
                 substanciaAtual = fisQ.mercurio;
-                btnMercurio.className = "flex-1 py-2 rounded-lg font-bold text-sm bg-gray-600 text-white shadow transition-all";
-                btnAgua.className = "flex-1 py-2 rounded-lg font-bold text-sm text-gray-600 hover:bg-white transition-all";
+                btnMercurio.className = "flex-1 py-1.5 rounded-lg font-bold text-sm bg-gray-600 text-white shadow transition-all";
+                btnAgua.className = "flex-1 py-1.5 rounded-lg font-bold text-sm text-gray-600 hover:bg-white transition-all";
             }
             atualizarHUDBase();
         }
@@ -208,13 +208,16 @@
                 const midX = (tX + iX) / 2;
                 const midY = (tY + iY) / 2;
                 
-                const bequerY = canvasElement.height - 150; 
-                const bequerLargura = 200;
+                // AJUSTE PARA CELULAR: Levanta o béquer dependendo do tamanho da tela
+                const isMobile = window.innerWidth < 768;
+                const bequerY = isMobile ? canvasElement.height - 280 : canvasElement.height - 150; 
+                const bequerLargura = isMobile ? 150 : 200;
+                
                 const larguraTuboVisual = Math.max(10, distancePx); 
                 const scalaVisual = 15; 
                 const alturaVisualH = -hMm * scalaVisual; 
 
-                // Linha guia
+                // Linha guia entre os dedos
                 canvasCtx.beginPath();
                 canvasCtx.moveTo(tX, tY);
                 canvasCtx.lineTo(iX, iY);
@@ -222,11 +225,11 @@
                 canvasCtx.lineWidth = 2;
                 canvasCtx.stroke();
                 
-                // Pontos
+                // Pontos nos dedos
                 canvasCtx.beginPath(); canvasCtx.arc(tX, tY, 5, 0, 2 * Math.PI); canvasCtx.fillStyle = '#10B981'; canvasCtx.fill();
                 canvasCtx.beginPath(); canvasCtx.arc(iX, iY, 5, 0, 2 * Math.PI); canvasCtx.fillStyle = '#EF4444'; canvasCtx.fill();
 
-                const nivelBaseY = bequerY - 50;
+                const nivelBaseY = bequerY - 40;
                 const nivelTuboY = nivelBaseY + alturaVisualH;
 
                 // Líquido no tubo
@@ -264,9 +267,9 @@
                 canvasCtx.lineWidth = 4;
                 canvasCtx.beginPath();
                 canvasCtx.moveTo(midX - larguraTuboVisual/2, bequerY);
-                canvasCtx.lineTo(midX - larguraTuboVisual/2, nivelBaseY - 200);
+                canvasCtx.lineTo(midX - larguraTuboVisual/2, bequerY - 350);
                 canvasCtx.moveTo(midX + larguraTuboVisual/2, bequerY);
-                canvasCtx.lineTo(midX + larguraTuboVisual/2, nivelBaseY - 200);
+                canvasCtx.lineTo(midX + larguraTuboVisual/2, bequerY - 350);
                 canvasCtx.stroke();
 
                 // Líquido no Béquer
